@@ -14,11 +14,11 @@ jobs:
       - name: Link plugin into Sandbox
         run: pwsh Build/Scripts/Link-PluginIntoSandbox.ps1
       - name: Setup UE
-        run: pwsh Build/Scripts/Setup-UE.ps1 -UEPath "C:\UE\UE_5.6"
+        run: pwsh Build/Scripts/Setup-UE.ps1 -UEPath "C:\Program Files\Epic Games\UE_5.6"
       - name: Build plugin (Win64)
         run: |
           pwsh Build/Scripts/Build-Plugin.ps1 `
-            -UEPath "C:\UE\UE_5.6" `
+            -UEPath "C:\Program Files\Epic Games\UE_5.6" `
             -PluginUPluginPath "$PWD\Plugins\SamplePlugin\SamplePlugin.uplugin" `
             -OutDir "$PWD\Artifacts\Win64" `
             -TargetPlatforms @("Win64") `
