@@ -2,9 +2,12 @@ name: PR CI
 on:
   pull_request:
     branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   build-and-test:
+    # Only run on non-draft PRs or manual triggers
+    if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
     runs-on: [ self-hosted, ue5, windows ]
     steps:
       - uses: actions/checkout@v4
