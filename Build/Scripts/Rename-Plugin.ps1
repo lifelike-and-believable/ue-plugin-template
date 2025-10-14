@@ -231,8 +231,44 @@ if (Test-Path $ScriptsDir) {
         Replace-InFile -FilePath $_.FullName -OldText "SamplePlugin" -NewText $NewPluginName
     }
     
-    # Note: We don't update PowerShell scripts (except this one) as they use dynamic paths
+    # Update PowerShell scripts (except this rename script)
+    Get-ChildItem -Path $ScriptsDir -Filter "*.ps1" -File -Recurse | ForEach-Object {
+        if ($_.Name -ne "Rename-Plugin.ps1") {
+            Replace-InFile -FilePath $_.FullName -OldText "SamplePlugin" -NewText $NewPluginName
+            Write-Host "  Updated script: $($_.Name)"
+        }
+    }
+    
     Write-Host "  Updated shell scripts"
+}
+
+Write-Host ""
+Write-Host "Step 8: Updating CI workflow files..."
+Write-Host "================================"
+
+$WorkflowsDir = Join-Path $RepoRoot ".github/workflows"
+if (Test-Path $WorkflowsDir) {
+    Get-ChildItem -Path $WorkflowsDir -Filter "*.yml" -File | ForEach-Object {
+        Replace-InFile -FilePath $_.FullName -OldText "SamplePlugin" -NewText $NewPluginName
+        Write-Host "  Updated workflow: $($_.Name)"
+    }
+}
+
+Write-Host ""
+Write-Host "Step 9: Updating Gauntlet test files..."
+Write-Host "================================"
+
+# Update Gauntlet JSON files (already handled in Step 6, but also check for code files)
+$GauntletFiles = @(
+    Get-ChildItem -Path $RepoRoot -Recurse -Include "*Gauntlet*.cs", "*Gauntlet*.cpp", "*Gauntlet*.h" -File -ErrorAction SilentlyContinue
+)
+if ($GauntletFiles.Count -gt 0) {
+    foreach ($file in $GauntletFiles) {
+        Replace-InFile -FilePath $file.FullName -OldText "SamplePlugin" -NewText $NewPluginName
+        Write-Host "  Updated Gauntlet file: $($file.Name)"
+    }
+} else {
+    Write-Host "  No Gauntlet code files found (this is normal if only JSON configs exist)"
 }
 
 Write-Host ""
