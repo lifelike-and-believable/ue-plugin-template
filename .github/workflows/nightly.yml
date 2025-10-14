@@ -1,0 +1,36 @@
+name: Nightly
+on:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  win-gauntlet-nullrhi:
+    runs-on: [ self-hosted, ue5, windows ]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Link plugin into Sandbox
+        run: pwsh Build/Scripts/Link-PluginIntoSandbox.ps1
+      - name: Setup UE
+        run: pwsh Build/Scripts/Setup-UE.ps1 -UEPath "C:\UE\UE_5.6"
+      - name: Build plugin
+        run: |
+          pwsh Build/Scripts/Build-Plugin.ps1 `
+            -UEPath "C:\UE\UE_5.6" `
+            -PluginUPluginPath "$PWD\Plugins\SamplePlugin\SamplePlugin.uplugin" `
+            -OutDir "$PWD\Artifacts\Win64" `
+            -TargetPlatforms @("Win64")
+      - name: Run Gauntlet (NullRHI)
+        run: |
+          pwsh Build/Scripts/Run-Gauntlet.ps1 `
+            -UEPath "C:\UE\UE_5.6" `
+            -ProjectFile "$PWD\ProjectSandbox\ProjectSandbox.uproject" `
+            -GauntletConfigs @("SamplePluginTests") `
+            -OutputDir "$PWD\Artifacts\Gauntlet_NullRHI" `
+            -NullRHI
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-win-nullrhi-${{ github.run_id }}
+          path: Artifacts/**

@@ -1,0 +1,15 @@
+{
+  "Configs": [
+    {
+      "Name": "SamplePluginTests",
+      "Type": "Process",
+      "Map": "",
+      "Clients": 1,
+      "Server": "",
+      "Controller": "SamplePlugin.MyTestController",
+      "Parameters": {
+        "Duration": 5
+      }
+    }
+  ]
+}

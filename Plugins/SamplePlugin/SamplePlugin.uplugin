@@ -1,0 +1,26 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "SamplePlugin",
+  "Description": "SamplePlugin plugin",
+  "Category": "Tools",
+  "CreatedBy": "Project Factory",
+  "Modules": [
+    {
+      "Name": "SamplePlugin",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "SamplePluginEditor",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "SamplePluginTests",
+      "Type": "Developer",
+      "LoadingPhase": "PostEngineInit"
+    }
+  ]
+}

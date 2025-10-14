@@ -1,0 +1,10 @@
+Binaries/
+Intermediate/
+Saved/
+DerivedDataCache/
+.vscode/
+.idea/
+*.sln
+*.suo
+*.vcxproj*
+.DS_Store

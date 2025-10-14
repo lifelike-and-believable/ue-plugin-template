@@ -1,0 +1,13 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.6",
+  "Category": "",
+  "Description": "Sandbox for SamplePlugin",
+  "Modules": [],
+  "Plugins": [
+    {
+      "Name": "SamplePlugin",
+      "Enabled": true
+    }
+  ]
+}

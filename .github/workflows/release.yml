@@ -1,0 +1,31 @@
+name: Release
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-release:
+    runs-on: [ self-hosted, ue5, windows ]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Link plugin into Sandbox
+        run: pwsh Build/Scripts/Link-PluginIntoSandbox.ps1
+      - name: Setup UE
+        run: pwsh Build/Scripts/Setup-UE.ps1 -UEPath "C:\UE\UE_5.6"
+      - name: Build plugin (Win64)
+        run: |
+          pwsh Build/Scripts/Build-Plugin.ps1 `
+            -UEPath "C:\UE\UE_5.6" `
+            -PluginUPluginPath "$PWD\Plugins\SamplePlugin\SamplePlugin.uplugin" `
+            -OutDir "$PWD\Artifacts\Win64" `
+            -TargetPlatforms @("Win64") `
+            -Configuration "Shipping"
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
