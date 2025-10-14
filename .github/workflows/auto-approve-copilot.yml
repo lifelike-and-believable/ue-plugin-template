@@ -1,0 +1,53 @@
+name: Auto-approve Copilot PR workflows
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  auto-approve:
+    # Only run for Copilot bot PRs
+    if: |
+      github.actor == 'Copilot' ||
+      github.actor == 'copilot[bot]' ||
+      github.actor == 'copilot-swe-agent[bot]' ||
+      contains(github.actor, 'copilot')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Wait for workflow runs to be queued
+        run: |
+          echo "Waiting for PR workflows to be created..."
+          echo "PR: #${{ github.event.pull_request.number }}"
+          echo "Author: ${{ github.actor }}"
+          echo "SHA: ${{ github.event.pull_request.head.sha }}"
+          sleep 20
+
+      - name: Auto-approve pending workflow runs
+        env:
+          GH_TOKEN: ${{ secrets.FACTORY_ADMIN_TOKEN }}
+        run: |
+          echo "Checking for workflows requiring approval..."
+
+          # Get workflow runs for this PR's commit that need approval
+          RUNS=$(gh api "repos/${{ github.repository }}/actions/runs?event=pull_request&status=action_required" \
+            --jq ".workflow_runs[] | select(.head_sha == \"${{ github.event.pull_request.head.sha }}\") | .id")
+
+          if [ -z "$RUNS" ]; then
+            echo "No workflow runs require approval (may already be approved or not yet queued)"
+            exit 0
+          fi
+
+          # Approve each workflow run
+          for RUN_ID in $RUNS; do
+            echo "Auto-approving workflow run $RUN_ID"
+            if gh api --method POST "repos/${{ github.repository }}/actions/runs/$RUN_ID/approve" 2>&1; then
+              echo "✓ Successfully approved run $RUN_ID"
+            else
+              echo "⚠ Run $RUN_ID may already be approved"
+            fi
+          done
+
+          echo "Auto-approval completed for PR #${{ github.event.pull_request.number }}"
