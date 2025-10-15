@@ -1,3 +1,4 @@
+
 name: Agent CI (Inner Loop)
 on:
   pull_request:
@@ -7,18 +8,28 @@ on:
 jobs:
   quick-build:
     runs-on: [ self-hosted, ue5, windows ]
+    defaults:
+      run:
+        shell: powershell
     steps:
       - uses: actions/checkout@v4
         with:
           lfs: true
+
       - name: Link plugin into Sandbox
-        run: pwsh Build/Scripts/Link-PluginIntoSandbox.ps1
+        run: |
+          & ./Build/Scripts/Link-PluginIntoSandbox.ps1
+
       - name: Setup UE
-        run: pwsh Build/Scripts/Setup-UE.ps1 -UEPath "C:\Program Files\Epic Games\UE_5.6"
+        run: |
+          & ./Build/Scripts/Setup-UE.ps1 -UEPath 'C:\Program Files\Epic Games\UE_5.6'
+
       - name: Build plugin (Win64)
         run: |
-          pwsh Build/Scripts/Build-Plugin.ps1 `
-            -UEPath "C:\Program Files\Epic Games\UE_5.6" `
-            -PluginUPluginPath "$PWD\Plugins\SamplePlugin\SamplePlugin.uplugin" `
-            -OutDir "$PWD\Artifacts\Win64" `
-            -TargetPlatforms @("Win64")
+          $uplugin = Join-Path $PWD 'Plugins\SamplePlugin\SamplePlugin.uplugin'
+          $outDir  = Join-Path $PWD 'Artifacts\Win64'
+          & ./Build/Scripts/Build-Plugin.ps1 `
+            -UEPath 'C:\Program Files\Epic Games\UE_5.6' `
+            -PluginUPluginPath $uplugin `
+            -OutDir $outDir `
+            -TargetPlatforms @('Win64')
