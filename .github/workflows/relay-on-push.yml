@@ -1,0 +1,53 @@
+# .github/workflows/relay-on-push.yml
+name: Relay Copilot branch to PR branch
+
+on:
+  push:
+    branches:
+      - 'copilot/**'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app.outputs.token }}
+          ref: ${{ github.ref }}  # the copilot/* branch
+
+      - name: Compute mirror branch name
+        id: names
+        run: |
+          SAFE="agent/${GITHUB_REF_NAME//\//-}"   # e.g., agent/copilot-feature-123
+          echo "safe=$SAFE" >> $GITHUB_OUTPUT
+
+      - name: Push mirror branch as App (trusted)
+        run: |
+          git config user.name "your-app[bot]"
+          git config user.email "your-app[bot]@users.noreply.github.com"
+          git push origin "HEAD:${{ steps.names.outputs.safe }}" --force
+
+      - name: Open or update PR owned by App/bot
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          BASE="${{ github.event.repository.default_branch }}"
+          H="${{ steps.names.outputs.safe }}"
+          TITLE="Agent iteration: ${GITHUB_REF_NAME}"
+          BODY="Mirrored from \`${GITHUB_REF_NAME}\` by trusted App for CI."
+          PR=$(gh pr list -B "$BASE" -H "$H" --json number -q '.[0].number')
+          if [ -n "$PR" ]; then
+            gh pr edit "$PR" --title "$TITLE" --body "$BODY"
+          else
+            gh pr create -B "$BASE" -H "$H" -t "$TITLE" -b "$BODY" --draft
+          fi
