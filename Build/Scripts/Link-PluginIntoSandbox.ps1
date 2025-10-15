@@ -1,6 +1,10 @@
-$PluginPath = "/mnt/data/ue-plugin-template\Plugins\SamplePlugin"
-$SandboxPath = "/mnt/data/ue-plugin-template\ProjectSandbox"
+$ScriptRoot = Split-Path -Parent $PSScriptRoot
+$RepoRoot = Split-Path -Parent $ScriptRoot
+
+$PluginPath = Join-Path $RepoRoot "Plugins\SamplePlugin"
+$SandboxPath = Join-Path $RepoRoot "ProjectSandbox"
 $dst = Join-Path $SandboxPath "Plugins\SamplePlugin"
+
 if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
 New-Item -ItemType Directory -Force -Path (Split-Path $dst) | Out-Null
 cmd /c "mklink /J ""$dst"" ""$PluginPath"""
