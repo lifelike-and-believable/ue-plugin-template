@@ -14,19 +14,19 @@ jobs:
         with:
           lfs: true
       - name: Link plugin into Sandbox
-        run: pwsh Build/Scripts/Link-PluginIntoSandbox.ps1
+        run: powershell Build/Scripts/Link-PluginIntoSandbox.ps1
       - name: Setup UE
-        run: pwsh Build/Scripts/Setup-UE.ps1 -UEPath "C:\Program Files\Epic Games\UE_5.6"
+        run: powershell Build/Scripts/Setup-UE.ps1 -UEPath "C:\Program Files\Epic Games\UE_5.6"
       - name: Build plugin (Win64)
         run: |
-          pwsh Build/Scripts/Build-Plugin.ps1 `
+          powershell Build/Scripts/Build-Plugin.ps1 `
             -UEPath "C:\Program Files\Epic Games\UE_5.6" `
             -PluginUPluginPath "$PWD\Plugins\SamplePlugin\SamplePlugin.uplugin" `
             -OutDir "$PWD\Artifacts\Win64" `
             -TargetPlatforms @("Win64")
       - name: Run automation tests
         run: |
-          pwsh Build/Scripts/Run-AutomationTests.ps1 `
+          powershell Build/Scripts/Run-AutomationTests.ps1 `
             -UEPath "C:\Program Files\Epic Games\UE_5.6" `
             -ProjectFile "$PWD\ProjectSandbox\ProjectSandbox.uproject" `
             -TestFilter "SamplePlugin.*" `
