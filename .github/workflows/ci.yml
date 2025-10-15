@@ -1,14 +1,16 @@
-name: PR CI
+name: CI
 on:
   pull_request:
     branches: [ main ]
     types: [ opened, synchronize, ready_for_review ]
+  push:
+    branches: [ main ]
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
   build-and-test:
-    # Only run on non-draft PRs or manual triggers
-    if: github.event.pull_request.draft == false || github.event_name == 'workflow_dispatch'
+    # Only run on non-draft PRs for PR events, or always for push/manual triggers
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: [ self-hosted, ue5, windows ]
     steps:
       - uses: actions/checkout@v4
@@ -35,5 +37,5 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pr-${{ github.run_id }}
+          name: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.run_id) || format('ci-{0}', github.run_id) }}
           path: Artifacts/**
