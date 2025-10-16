@@ -3,7 +3,7 @@ name: Agent CI (inner loop)
 on:
   push:
     branches:
-      - 'agent/**'          # Copilot's working branches iterate here
+      - 'copilot/**'          # Copilot's working branches iterate here
   workflow_dispatch:
 
 # Keep perms tight; enough to publish checks & artifacts
