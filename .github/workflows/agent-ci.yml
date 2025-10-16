@@ -56,8 +56,8 @@ jobs:
           $pkg = Join-Path $env:RUNNER_TEMP 'PluginPackage'
           New-Item -ItemType Directory -Force -Path $pkg | Out-Null
           & "$uat" BuildPlugin `
-            -Plugin:"${{ steps.find.outputs.plugin_path }}" `
-            -Package:"$pkg" `
+            -Plugin="${{ steps.find.outputs.plugin_path }}" `
+            -Package="$pkg" `
             -TargetPlatforms=Win64 `
             -Rocket
         # If you need additional target platforms, add them comma-separated to -TargetPlatforms
