@@ -4,6 +4,8 @@ on:
   pull_request:
     branches: [ main ]
     types: [ opened, synchronize, ready_for_review ]
+  issue_comment:
+    types: [ created ]
   push:
     branches: [ main ]
   workflow_dispatch:
@@ -24,7 +26,14 @@ env:
 jobs:
   build-and-test:
     # Only run on non-draft PRs for PR events, or always for push/manual triggers
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    # Run normally for push/manual events, run for non-draft PRs, or when a comment
+    # containing '/test' or '/editor' is posted on a PR (so maintainers can trigger CI)
+    if: >-
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && (
+        contains(github.event.comment.body, '/test') || contains(github.event.comment.body, '/Test') ||
+        contains(github.event.comment.body, '/editor') || contains(github.event.comment.body, '/Editor')
+      ))
     runs-on: [ self-hosted, ue5, windows ]
 
     steps:
@@ -36,7 +45,8 @@ jobs:
           submodules: recursive
 
       - name: Post build started comment
-        if: github.event_name == 'pull_request' && github.event.pull_request.number != null
+        if: (github.event_name == 'pull_request' && github.event.pull_request.number != null) ||
+              (github.event_name == 'issue_comment' && github.event.issue.pull_request != null)
         uses: actions/github-script@v7
         with:
           script: |
@@ -47,6 +57,13 @@ jobs:
               issue_number: context.issue.number,
               body: `🚀 **CI build started** for this PR!\n\n[View build logs →](${runUrl})`
             });
+
+      - name: Fetch PR head (when triggered by comment)
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request != null
+        run: |
+          echo "Fetching PR #${{ github.event.issue.number }} head"
+          git fetch origin +refs/pull/${{ github.event.issue.number }}/head:pr-${{ github.event.issue.number }}
+          git checkout pr-${{ github.event.issue.number }}
 
       - name: Link plugin into Sandbox (optional)
         run: |
@@ -103,3 +120,14 @@ jobs:
           name: TestReports
           path: ${{ runner.temp }}/TestLogs
           if-no-files-found: ignore
+
+      # When a maintainer posts `/editor` in a PR comment, launch the full Unreal Editor
+      - name: Launch Unreal Editor (optional)
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request != null && (contains(github.event.comment.body, '/editor') || contains(github.event.comment.body, '/Editor')) && env.PROJECT_UPROJECT != ''
+        shell: powershell
+        timeout-minutes: 10
+        run: |
+          $editor = Join-Path $env:UE_ROOT 'Engine\Binaries\Win64\UnrealEditor.exe'
+          Write-Host "Launching Unreal Editor for project: $env:PROJECT_UPROJECT"
+          # Start the editor asynchronously so the workflow doesn't block waiting for the UI
+          Start-Process -FilePath $editor -ArgumentList "`"$env:PROJECT_UPROJECT`""
