@@ -33,8 +33,8 @@ jobs:
 
       - name: Push mirror branch as App (trusted)
         run: |
-          git config user.name "your-app[bot]"
-          git config user.email "your-app[bot]@users.noreply.github.com"
+          git config user.name "lnb-bot"
+          git config user.email "lnb-bot@users.noreply.github.com"
           git push origin "HEAD:${{ steps.names.outputs.safe }}" --force
 
       - name: Open or update PR owned by App/bot
