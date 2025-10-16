@@ -1,36 +1,68 @@
 name: Release
+
 on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  checks: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UE_ROOT: 'C:\Program Files\Epic Games\UE_5.6'
 
 jobs:
   build-release:
     runs-on: [ self-hosted, ue5, windows ]
-    defaults:
-      run:
-        shell: powershell
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (full)
+        uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           lfs: true
-      - name: Link plugin into Sandbox
+          submodules: recursive
+      - name: Link plugin into Sandbox (optional)
         run: |
-          & ./Build/Scripts/Link-PluginIntoSandbox.ps1
-      - name: Setup UE
+          if (Test-Path ./Build/Scripts/Link-PluginIntoSandbox.ps1) { & ./Build/Scripts/Link-PluginIntoSandbox.ps1 }
+        shell: powershell
+
+      - name: Locate plugin (.uplugin)
+        id: find
+        shell: powershell
         run: |
-          & ./Build/Scripts/Setup-UE.ps1 -UEPath "C:\Program Files\Epic Games\UE_5.6"
-      - name: Build plugin (Win64)
+          $uplugin = Get-ChildItem -Path $PWD -Recurse -Filter *.uplugin | Select-Object -First 1
+          if (-not $uplugin) {
+            Write-Error "No .uplugin found in repository."
+          }
+          "plugin_path=$($uplugin.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "plugin_dir=$($uplugin.DirectoryName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "plugin_name=$($uplugin.BaseName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Using plugin: $($uplugin.FullName)"
+
+      - name: Build plugin (Win64, Shipping)
+        shell: powershell
         run: |
-          & ./Build/Scripts/Build-Plugin.ps1 `
-            -UEPath "C:\Program Files\Epic Games\UE_5.6" `
-            -PluginUPluginPath "$PWD\Plugins\SamplePlugin\SamplePlugin.uplugin" `
-            -OutDir "$PWD\Artifacts\Win64" `
-            -TargetPlatforms @("Win64") `
-            -Configuration "Shipping"
+          $uat = Join-Path $env:UE_ROOT 'Engine\Build\BatchFiles\RunUAT.bat'
+          $pkg = Join-Path $env:RUNNER_TEMP 'PluginPackage'
+          New-Item -ItemType Directory -Force -Path $pkg | Out-Null
+          & "$uat" BuildPlugin `
+            -Plugin="${{ steps.find.outputs.plugin_path }}" `
+            -Package="$pkg" `
+            -TargetPlatforms=Win64 `
+            -Configuration=Shipping `
+            -Rocket
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: Artifacts/**/*
+          files: ${{ runner.temp }}/PluginPackage/**/*
+          name: ${{ steps.find.outputs.plugin_name }} ${{ github.ref_name }}
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
