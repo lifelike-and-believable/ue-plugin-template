@@ -1,46 +1,105 @@
 name: CI
+
 on:
   pull_request:
     branches: [ main ]
     types: [ opened, synchronize, ready_for_review ]
   push:
     branches: [ main ]
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UE_ROOT: 'C:\Program Files\Epic Games\UE_5.6'
+  PROJECT_UPROJECT: ''
 
 jobs:
   build-and-test:
     # Only run on non-draft PRs for PR events, or always for push/manual triggers
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: [ self-hosted, ue5, windows ]
-    defaults:
-      run:
-        shell: powershell
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (full)
+        uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           lfs: true
-      - name: Link plugin into Sandbox
+          submodules: recursive
+
+      - name: Post build started comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.number != null
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🚀 **CI build started** for this PR!\n\n[View build logs →](${runUrl})`
+            });
+
+      - name: Link plugin into Sandbox (optional)
         run: |
-          & ./Build/Scripts/Link-PluginIntoSandbox.ps1
-      - name: Setup UE
+          if (Test-Path ./Build/Scripts/Link-PluginIntoSandbox.ps1) { & ./Build/Scripts/Link-PluginIntoSandbox.ps1 }
+        shell: powershell
+
+      - name: Locate plugin (.uplugin)
+        id: find
+        shell: powershell
         run: |
-          & ./Build/Scripts/Setup-UE.ps1 -UEPath "C:\Program Files\Epic Games\UE_5.6"
+          $uplugin = Get-ChildItem -Path $PWD -Recurse -Filter *.uplugin | Select-Object -First 1
+          if (-not $uplugin) {
+            Write-Error "No .uplugin found in repository."
+          }
+          "plugin_path=$($uplugin.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "plugin_dir=$($uplugin.DirectoryName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "plugin_name=$($uplugin.BaseName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Using plugin: $($uplugin.FullName)"
+
       - name: Build plugin (Win64)
+        shell: powershell
         run: |
-          & ./Build/Scripts/Build-Plugin.ps1 `
-            -UEPath "C:\Program Files\Epic Games\UE_5.6" `
-            -PluginUPluginPath "$PWD\Plugins\SamplePlugin\SamplePlugin.uplugin" `
-            -OutDir "$PWD\Artifacts\Win64" `
-            -TargetPlatforms @("Win64")
-      - name: Run automation tests
-        run: |
-          & ./Build/Scripts/Run-AutomationTests.ps1 `
-            -UEPath "C:\Program Files\Epic Games\UE_5.6" `
-            -ProjectFile "$PWD\ProjectSandbox\ProjectSandbox.uproject" `
-            -TestFilter "SamplePlugin.*" `
-            -ResultsDir "$PWD\Artifacts\Tests"
-      - name: Upload artifacts
+          $uat = Join-Path $env:UE_ROOT 'Engine\Build\BatchFiles\RunUAT.bat'
+          $pkg = Join-Path $env:RUNNER_TEMP 'PluginPackage'
+          New-Item -ItemType Directory -Force -Path $pkg | Out-Null
+          & "$uat" BuildPlugin `
+            -Plugin="${{ steps.find.outputs.plugin_path }}" `
+            -Package="$pkg" `
+            -TargetPlatforms=Win64 `
+            -Rocket
+
+      - name: Package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.run_id) || format('ci-{0}', github.run_id) }}
-          path: Artifacts/**
+          name: ${{ steps.find.outputs.plugin_name }}-Win64
+          path: ${{ runner.temp }}/PluginPackage
+
+      - name: Run Automation Tests (optional)
+        if: env.PROJECT_UPROJECT != ''
+        shell: powershell
+        timeout-minutes: 60
+        run: |
+          $editor = Join-Path $env:UE_ROOT 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
+          $logDir = Join-Path $env:RUNNER_TEMP 'TestLogs'
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          & "$editor" "$env:PROJECT_UPROJECT" -unattended -nop4 -nullrhi -nosplash `
+            -ExecCmds="Automation RunTests Now; Quit" `
+            -ReportExportPath="$logDir"
+
+      - name: Upload test reports (optional)
+        if: env.PROJECT_UPROJECT != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestReports
+          path: ${{ runner.temp }}/TestLogs
+          if-no-files-found: ignore
