@@ -18,6 +18,7 @@ env:
 
 jobs:
   win-gauntlet-nullrhi:
+    if: github.repository != 'lifelike-and-believable/ue-plugin-template'
     runs-on: [ self-hosted, ue5, windows ]
 
     steps:
