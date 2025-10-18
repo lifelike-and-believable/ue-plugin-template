@@ -20,6 +20,7 @@ concurrency:
 env:
   UE_ROOT: 'C:\Program Files\Epic Games\UE_5.6'
   PROJECT_UPROJECT: ''
+  TEMPLATE_REPO: lifelike-and-believable/ue-plugin-template
 
 jobs:
   build-and-test:
