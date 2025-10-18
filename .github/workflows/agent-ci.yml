@@ -1,6 +1,6 @@
 name: Agent CI (inner loop)
 
-on:
+"on":
   push:
     branches:
       - 'copilot/**'          # Copilot's working branches iterate here
@@ -33,7 +33,7 @@ jobs:
   build_and_test:
     # Runs for pushes/workflow_dispatch, and also when a comment '/build' is created on a PR
     if: >-
-      github.repository != env.TEMPLATE_REPO &&
+      github.repository != 'lifelike-and-believable/ue-plugin-template' &&
       ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/build') && github.event.issue.pull_request != null))
     runs-on: [self-hosted, windows, ue5]   # <- keep your existing runner labels
