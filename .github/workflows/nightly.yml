@@ -15,11 +15,10 @@ concurrency:
 
 env:
   UE_ROOT: 'C:\Program Files\Epic Games\UE_5.6'
-  TEMPLATE_REPO: lifelike-and-believable/ue-plugin-template
 
 jobs:
   win-gauntlet-nullrhi:
-    if: github.repository != env.TEMPLATE_REPO
+    if: github.repository != 'lifelike-and-believable/ue-plugin-template'
     runs-on: [ self-hosted, ue5, windows ]
 
     steps:
