@@ -8,6 +8,7 @@ on:
   issue_comment:
     types: [created]
 
+
 # Keep perms tight; enough to publish checks & artifacts and post PR comments
 permissions:
   contents: read
@@ -20,6 +21,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # So we can disable this workflow on the template itself
+  TEMPLATE_REPO: lifelike-and-believable/ue-plugin-template
   # Adjust to your installed UE version/location on the runner
   UE_ROOT: 'C:\Program Files\Epic Games\UE_5.6'
   # Optional: set PROJECT_UPROJECT as a repo variable/secret to enable tests
@@ -30,8 +33,9 @@ jobs:
   build_and_test:
     # Runs for pushes/workflow_dispatch, and also when a comment '/build' is created on a PR
     if: >-
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/build') && github.event.issue.pull_request != null)
+      $(( github.repository != env.TEMPLATE_REPO)) &&
+      ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/build') && github.event.issue.pull_request != null))
     runs-on: [self-hosted, windows, ue5]   # <- keep your existing runner labels
 
     steps:
